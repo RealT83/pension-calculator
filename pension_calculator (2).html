@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Pension Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0f0f11;
+    --bg2: #17171b;
+    --bg3: #1e1e24;
+    --bg4: #26262e;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #f0f0f2;
+    --text2: #9090a0;
+    --text3: #5a5a6a;
+    --accent: #6c8fff;
+    --accent2: #4ecfa8;
+    --accent3: #f0a050;
+    --accent4: #c87aff;
+    --danger: #ff6b6b;
+    --warn: #f0a050;
+    --usd: #6c8fff;
+    --eur: #c87aff;
+    --kzt: #f0a050;
+    --nok: #4ecfa8;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --font: 'DM Sans', sans-serif;
+    --mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    padding: 2rem 1.5rem 1rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  header h1 {
+    font-size: 18px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  header h1 span { color: var(--accent2); }
+
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--text2);
+    font-family: var(--mono);
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--text3);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .dot.green { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .dot.amber { background: var(--warn); }
+  .dot.red   { background: var(--danger); }
+
+  main { padding: 1.5rem; max-width: 1100px; margin: 0 auto; }
+
+  .section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    margin-bottom: 1rem;
+    font-family: var(--mono);
+  }
+
+  .funds-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  @media (max-width: 700px) {
+    .funds-grid { grid-template-columns: repeat(2, 1fr); }
+    .metrics-row { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+    .assumptions-grid { grid-template-columns: 1fr !important; }
+    header { padding: 1rem; }
+    main { padding: 1rem; }
+  }
+
+  @media (max-width: 400px) {
+    .funds-grid { grid-template-columns: 1fr 1fr; }
+  }
+
+  .fund-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: .75rem;
+  }
+
+  .fund-name {
+    font-size: 11px;
+    color: var(--text3);
+    margin-bottom: 4px;
+    font-family: var(--mono);
+  }
+
+  .fund-orig {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .fund-nok {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 3px;
+  }
+
+  .fund-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
+  .tag-usd { background: rgba(108,143,255,0.15); color: var(--usd); }
+  .tag-eur { background: rgba(200,122,255,0.15); color: var(--eur); }
+  .tag-kzt { background: rgba(240,160,80,0.15); color: var(--kzt); }
+  .tag-nok { background: rgba(78,207,168,0.15); color: var(--nok); }
+
+  .fx-note {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: .75rem;
+    font-family: var(--mono);
+    line-height: 1.6;
+  }
+
+  .assumptions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .slider-block { display: flex; flex-direction: column; gap: 10px; }
+
+  .sl {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .sl label {
+    font-size: 12px;
+    color: var(--text2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .sl label span {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 3px;
+    background: var(--bg4);
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+  }
+
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 1.25rem;
+  }
+
+  .metric {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: .75rem;
+    text-align: center;
+    transition: border-color .2s;
+  }
+
+  .metric.hl { border-color: var(--accent2); }
+
+  .metric .age {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: var(--mono);
+    margin-bottom: 4px;
+  }
+
+  .metric .val {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.2;
+  }
+
+  .metric .sub {
+    font-size: 11px;
+    color: var(--text2);
+    margin-top: 3px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .tab {
+    padding: 5px 12px;
+    font-size: 12px;
+    font-family: var(--mono);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    background: transparent;
+    color: var(--text2);
+    transition: all .15s;
+  }
+
+  .tab:hover { border-color: var(--border2); color: var(--text); }
+  .tab.active { background: var(--bg4); border-color: var(--border2); color: var(--text); }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: .75rem;
+  }
+
+  .leg {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .leg-sq {
+    width: 10px; height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .chart-wrap { position: relative; width: 100%; height: 280px; }
+
+  .chart-note {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: .6rem;
+    line-height: 1.5;
+  }
+
+  .fx-scenarios {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0,1fr));
+    gap: 8px;
+  }
+
+  @media (max-width: 500px) {
+    .fx-scenarios { grid-template-columns: 1fr 1fr; }
+  }
+
+  .fx-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: .75rem;
+    text-align: center;
+  }
+
+  .fx-card .fx-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .fx-card .fx-val { font-size: 15px; font-weight: 600; }
+  .fx-card .fx-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  .save-area {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  input[type=text] {
+    flex: 1;
+    min-width: 180px;
+    padding: 8px 12px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    outline: none;
+    transition: border-color .15s;
+  }
+
+  input[type=text]:focus { border-color: var(--border2); }
+  input[type=text]::placeholder { color: var(--text3); }
+
+  button {
+    padding: 8px 16px;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+
+  button:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .save-status { font-size: 12px; color: var(--text2); margin-top: .5rem; font-family: var(--mono); }
+  .err { color: var(--danger); }
+  .ok  { color: var(--accent2); }
+
+  .sql-block {
+    margin-top: .75rem;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: .75rem;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text2);
+    white-space: pre;
+    overflow-x: auto;
+    line-height: 1.6;
+  }
+
+  .saved-list { margin-top: .75rem; }
+  .saved-list-title { font-size: 11px; color: var(--text3); margin-bottom: .4rem; font-family: var(--mono); }
+  .saved-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 6px 0;
+    border-top: 1px solid var(--border);
+    color: var(--text2);
+  }
+  .saved-row span:last-child { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+  .divider { height: 1px; background: var(--border); margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pension <span>calculator</span></h1>
+  <div class="status">
+    <div class="dot" id="statusDot"></div>
+    <span id="statusMsg">Initialising...</span>
+    <span id="lastUpdated" style="margin-left:8px;color:var(--text3)"></span>
+  </div>
+</header>
+
+<main>
+
+  <!-- FUNDS -->
+  <div class="section">
+    <div class="section-title">Pension funds — latest snapshot</div>
+    <div class="funds-grid" id="fundsGrid">
+      <div class="fund-card"><div class="fund-name">Loading...</div></div>
+      <div class="fund-card"><div class="fund-name">Loading...</div></div>
+      <div class="fund-card"><div class="fund-name">Loading...</div></div>
+      <div class="fund-card"><div class="fund-name">Loading...</div></div>
+      <div class="fund-card"><div class="fund-name">Loading...</div></div>
+    </div>
+    <div class="fx-note" id="fxNote">Fetching live exchange rates...</div>
+  </div>
+
+  <!-- ASSUMPTIONS -->
+  <div class="section">
+    <div class="section-title">Assumptions</div>
+    <div class="assumptions-grid">
+      <div class="slider-block">
+        <div class="sl">
+          <label>Current age <span id="curAgeV">38</span></label>
+          <input type="range" id="curAge" min="25" max="64" step="1" value="38">
+        </div>
+        <div class="sl">
+          <label>Annual return rate <span id="retRateV">7.0%</span></label>
+          <input type="range" id="retRate" min="2" max="15" step="0.5" value="7">
+        </div>
+        <div class="sl">
+          <label>Annual contributions (NOK) <span id="contribV">50K</span></label>
+          <input type="range" id="contrib" min="0" max="300000" step="5000" value="50000">
+        </div>
+        <div class="sl">
+          <label>Annuity drawdown rate <span id="annuityV">4.0%</span></label>
+          <input type="range" id="annuity" min="2" max="8" step="0.5" value="4">
+        </div>
+      </div>
+      <div class="slider-block">
+        <div class="sl">
+          <label>KZT annual depreciation vs NOK <span id="kztDepV">5.0%</span></label>
+          <input type="range" id="kztDep" min="0" max="20" step="0.5" value="5">
+        </div>
+        <div class="sl">
+          <label>USD annual drift vs NOK <span id="usdDepV">+1.0%</span></label>
+          <input type="range" id="usdDep" min="-5" max="10" step="0.5" value="1">
+        </div>
+        <div class="sl">
+          <label>EUR annual drift vs NOK <span id="eurDepV">+0.5%</span></label>
+          <input type="range" id="eurDep" min="-5" max="10" step="0.5" value="0.5">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROJECTIONS -->
+  <div class="section">
+    <div class="section-title">Projections — total pot in NOK</div>
+    <div class="metrics-row" id="metricsRow"></div>
+    <div class="tabs">
+      <button class="tab active" onclick="setTab('pot',this)">Total pot</button>
+      <button class="tab" onclick="setTab('income',this)">Monthly income</button>
+      <button class="tab" onclick="setTab('breakdown',this)">Fund breakdown</button>
+      <button class="tab" onclick="setTab('sensitivity',this)">Rate sensitivity</button>
+    </div>
+    <div class="legend" id="chartLegend"></div>
+    <div class="chart-wrap"><canvas id="mainChart"></canvas></div>
+    <p class="chart-note" id="chartNote"></p>
+  </div>
+
+  <!-- FX RISK -->
+  <div class="section">
+    <div class="section-title">FX risk — foreign pensions in NOK at retirement</div>
+    <div class="sl" style="margin-bottom:1rem;max-width:400px">
+      <label>Retirement age for analysis <span id="fxAgeV">67</span></label>
+      <input type="range" id="fxAge" min="60" max="70" step="1" value="67">
+    </div>
+    <div class="fx-scenarios" id="fxGrid"></div>
+    <div class="fx-note" style="margin-top:.75rem">
+      Scenarios show combined value of ISPP (USD), ISPS (EUR), and QAZ (KZT) converted to NOK. State pension and Nordea (NOK) are unaffected by exchange rates.
+    </div>
+  </div>
+
+  <!-- SAVE SCENARIO -->
+  <div class="section">
+    <div class="section-title">Save scenario</div>
+    <div class="save-area">
+      <input type="text" id="scenarioName" placeholder="e.g. Base case, retire at 65, optimistic">
+      <button onclick="saveScenario()">Save</button>
+    </div>
+    <div class="save-status" id="saveStatus"></div>
+    <div id="sqlBlock"></div>
+    <div class="saved-list" id="savedScenarios"></div>
+  </div>
+
+</main>
+
+<script>
+const SUPA_URL = 'https://jfybkraywjsapimxdjxo.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmeWJrcmF5d2pzYXBpbXhkanhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4NTA1NTIsImV4cCI6MjA5MDQyNjU1Mn0.ZBzS0hvya3NIeBpbHLRWStEHyid2O9i6feCw4cphmF8';
+const AGES = [60, 62, 65, 67, 70];
+
+const FUND_COLORS = {
+  ispp:  '#6c8fff',
+  isps:  '#c87aff',
+  qaz:   '#f0a050',
+  state: '#4ecfa8',
+  nordea:'#2eafd4'
+};
+
+let state = {
+  funds: { ispp: 0, isps: 0, qaz: 0, state_pension: 0, ret_fund: 0 },
+  fx: { usdNok: 10.8, eurNok: 11.7, kztNok: 0.022 },
+  fxLoaded: false,
+  supaLoaded: false,
+  chart: null,
+  tab: 'pot'
+};
+
+function supa(path, opts = {}) {
+  return fetch(SUPA_URL + path, {
+    headers: {
+      'apikey': SUPA_KEY,
+      'Authorization': 'Bearer ' + SUPA_KEY,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {})
+    },
+    ...opts
+  });
+}
+
+async function loadFx() {
+  try {
+    const r = await fetch('https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies/nok.json');
+    const d = await r.json();
+    if (d && d.nok) {
+      if (d.nok.usd) state.fx.usdNok = 1 / d.nok.usd;
+      if (d.nok.eur) state.fx.eurNok = 1 / d.nok.eur;
+      if (d.nok.kzt) state.fx.kztNok = 1 / d.nok.kzt;
+      state.fxLoaded = true;
+    }
+  } catch (e) {
+    console.warn('FX fetch failed, using fallback rates');
+  }
+}
+
+async function loadSnapshot() {
+  try {
+    const r = await supa("/rest/v1/snapshots?select=ispp,isps,qaz,state_pension,ret_fund,date,fx_rates&order=date.desc&limit=1");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const rows = await r.json();
+    if (!rows || rows.length === 0) throw new Error("No rows returned");
+    const row = rows[0];
+    state.funds.ispp          = parseFloat(row.ispp)          || 0;
+    state.funds.isps          = parseFloat(row.isps)          || 0;
+    state.funds.qaz           = parseFloat(row.qaz)           || 0;
+    state.funds.state_pension = parseFloat(row.state_pension) || 0;
+    state.funds.ret_fund      = parseFloat(row.ret_fund)      || 0;
+    if (row.fx_rates && typeof row.fx_rates === "object") {
+      const fx = row.fx_rates;
+      if (fx.USD) state.fx.usdNok = parseFloat(fx.USD);
+      if (fx.EUR) state.fx.eurNok = parseFloat(fx.EUR);
+      if (fx.KZT) state.fx.kztNok = parseFloat(fx.KZT);
+    }
+    state.supaLoaded = true;
+    document.getElementById("lastUpdated").textContent = row.date ? "· " + row.date : "";
+    return true;
+  } catch (e) {
+    console.error("Snapshot load error:", e);
+    return false;
+  }
+}
+
+function pct(id) { return parseFloat(document.getElementById(id).value) || 0; }
+function vi(id)  { return parseInt(document.getElementById(id).value)   || 0; }
+
+function convertedFunds(years) {
+  const f = state.funds;
+  const x = state.fx;
+  const kd = pct('kztDep') / 100;
+  const ud = pct('usdDep') / 100;
+  const ed = pct('eurDep') / 100;
+  return {
+    ispp:  f.ispp  * x.usdNok * Math.pow(1 + ud, years),
+    isps:  f.isps  * x.eurNok * Math.pow(1 + ed, years),
+    qaz:   f.qaz   * x.kztNok * Math.pow(1 - kd, years),
+    state: f.state_pension,
+    nordea:f.ret_fund
+  };
+}
+
+function projectPot(years) {
+  const r = pct('retRate') / 100;
+  const c = pct('contrib');
+  const cf = convertedFunds(years);
+  const base = cf.ispp + cf.isps + cf.qaz + cf.state + cf.nordea;
+  if (years === 0) return Math.round(base);
+  const grown = base * Math.pow(1 + r, years) + c * (Math.pow(1 + r, years) - 1) / r;
+  return Math.round(grown);
+}
+
+function projectByFund(years) {
+  const r = pct('retRate') / 100;
+  const c = pct('contrib');
+  const cf = convertedFunds(years);
+  const vals = [cf.ispp, cf.isps, cf.qaz, cf.state, cf.nordea];
+  const total = vals.reduce((a, b) => a + b, 0);
+  const contribPot = years > 0 ? c * (Math.pow(1 + r, years) - 1) / r : 0;
+  return vals.map((v, i) => {
+    const share = total > 0 ? v / total : 0.2;
+    return Math.round(v * Math.pow(1 + r, years) + contribPot * share);
+  });
+}
+
+function monthlyIncome(pot) { return Math.round(pot * (pct('annuity') / 100) / 12); }
+
+function nokFmt(n, compact) {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '-' : '';
+  if (compact) {
+    if (abs >= 1e9) return sign + 'kr' + (abs / 1e9).toFixed(2) + 'B';
+    if (abs >= 1e6) return sign + 'kr' + (abs / 1e6).toFixed(2) + 'M';
+    if (abs >= 1e3) return sign + 'kr' + Math.round(abs / 1000) + 'K';
+  }
+  return sign + 'kr' + Math.round(n).toLocaleString('nb-NO');
+}
+
+function updateFundsGrid() {
+  const f = state.funds;
+  const x = state.fx;
+  const items = [
+    { name: 'ISPP',         orig: '$'  + Math.round(f.ispp).toLocaleString(),          nok: Math.round(f.ispp * x.usdNok),          tag: 'USD', tc: 'tag-usd' },
+    { name: 'ISPS',         orig: '€'  + Math.round(f.isps).toLocaleString(),          nok: Math.round(f.isps * x.eurNok),          tag: 'EUR', tc: 'tag-eur' },
+    { name: 'QAZ',          orig: '₸'  + Math.round(f.qaz).toLocaleString(),           nok: Math.round(f.qaz  * x.kztNok),          tag: 'KZT', tc: 'tag-kzt' },
+    { name: 'State pension',orig: 'kr' + Math.round(f.state_pension).toLocaleString(), nok: Math.round(f.state_pension),            tag: 'NOK', tc: 'tag-nok' },
+    { name: 'Nordea',       orig: 'kr' + Math.round(f.ret_fund).toLocaleString(),      nok: Math.round(f.ret_fund),                 tag: 'NOK', tc: 'tag-nok' },
+  ];
+  document.getElementById('fundsGrid').innerHTML = items.map(i => `
+    <div class="fund-card">
+      <div class="fund-name">${i.name}</div>
+      <div class="fund-orig">${i.orig}</div>
+      <div class="fund-nok">${nokFmt(i.nok, false)}</div>
+      <span class="fund-tag ${i.tc}">${i.tag}</span>
+    </div>`).join('');
+
+  const fxSrc = state.fxLoaded ? 'live' : 'fallback';
+  document.getElementById('fxNote').textContent =
+    `Rates (${fxSrc}): 1 USD = kr${x.usdNok.toFixed(2)} · 1 EUR = kr${x.eurNok.toFixed(2)} · 1 KZT = kr${x.kztNok.toFixed(4)}`;
+}
+
+function updateMetrics() {
+  const age = vi('curAge');
+  document.getElementById('metricsRow').innerHTML = AGES.map(a => {
+    const yrs = Math.max(a - age, 0);
+    const pot = projectPot(yrs);
+    const inc = monthlyIncome(pot);
+    return `<div class="metric${a === 67 ? ' hl' : ''}">
+      <div class="age">Age ${a}</div>
+      <div class="val">${nokFmt(pot, true)}</div>
+      <div class="sub">${nokFmt(inc, true)}/mo</div>
+    </div>`;
+  }).join('');
+}
+
+let chart = null;
+function setTab(tab, btn) {
+  state.tab = tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  updateChart();
+}
+
+const CHART_COLORS = ['#6c8fff', '#c87aff', '#f0a050', '#4ecfa8', '#2eafd4'];
+const FUND_NAMES   = ['ISPP (USD)', 'ISPS (EUR)', 'QAZ (KZT)', 'State pension', 'Nordea'];
+
+function updateChart() {
+  const age = vi('curAge');
+  const ctx = document.getElementById('mainChart').getContext('2d');
+  if (chart) { chart.destroy(); chart = null; }
+  const labels = AGES.map(a => 'Age ' + a);
+  document.getElementById('chartLegend').innerHTML = '';
+
+  const gridColor  = 'rgba(255,255,255,0.06)';
+  const tickColor  = '#5a5a6a';
+  const baseScales = {
+    y: { ticks: { color: tickColor, callback: v => nokFmt(v, true) }, grid: { color: gridColor } },
+    x: { ticks: { color: tickColor }, grid: { display: false } }
+  };
+
+  if (state.tab === 'pot') {
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: AGES.map(a => projectPot(Math.max(a - age, 0))), backgroundColor: '#6c8fff', borderRadius: 5, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => nokFmt(c.raw, false) } } },
+        scales: baseScales }
+    });
+    document.getElementById('chartNote').textContent = 'Total projected pot in NOK at each retirement age. Return rate ' + pct('retRate').toFixed(1) + '%, contributions kr' + pct('contrib').toLocaleString('nb-NO') + '/yr.';
+  }
+
+  else if (state.tab === 'income') {
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: AGES.map(a => monthlyIncome(projectPot(Math.max(a - age, 0)))), backgroundColor: '#4ecfa8', borderRadius: 5, borderWidth: 0 }] },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => nokFmt(c.raw, false) + '/mo' } } },
+        scales: { ...baseScales, y: { ticks: { color: tickColor, callback: v => nokFmt(v, true) + '/mo' }, grid: { color: gridColor } } } }
+    });
+    document.getElementById('chartNote').textContent = 'Monthly income using ' + pct('annuity').toFixed(1) + '% annual drawdown rate on total pot.';
+  }
+
+  else if (state.tab === 'breakdown') {
+    const datasets = FUND_NAMES.map((name, i) => ({
+      label: name,
+      data: AGES.map(a => projectByFund(Math.max(a - age, 0))[i]),
+      backgroundColor: CHART_COLORS[i],
+      borderRadius: i === FUND_NAMES.length - 1 ? 5 : 0,
+      stack: 'a', borderWidth: 0
+    }));
+    chart = new Chart(ctx, {
+      type: 'bar', data: { labels, datasets },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + nokFmt(c.raw, false) } } },
+        scales: { ...baseScales, y: { stacked: true, ticks: { color: tickColor, callback: v => nokFmt(v, true) }, grid: { color: gridColor } }, x: { stacked: true, ticks: { color: tickColor }, grid: { display: false } } } }
+    });
+    document.getElementById('chartLegend').innerHTML = FUND_NAMES.map((n, i) =>
+      `<span class="leg"><span class="leg-sq" style="background:${CHART_COLORS[i]}"></span>${n}</span>`).join('');
+    document.getElementById('chartNote').textContent = 'Stacked NOK value of each fund at each retirement age.';
+  }
+
+  else if (state.tab === 'sensitivity') {
+    const baseRate = pct('retRate');
+    const scenarios = [
+      { rate: 4,       label: 'Conservative 4%',             color: '#ff6b6b' },
+      { rate: 6,       label: 'Moderate 6%',                  color: '#f0a050' },
+      { rate: baseRate,label: 'Your rate ' + baseRate.toFixed(1) + '%', color: '#6c8fff' },
+      { rate: 10,      label: 'Optimistic 10%',               color: '#4ecfa8' },
+      { rate: 13,      label: 'Aggressive 13%',               color: '#c87aff' },
+    ].filter((s, i, arr) => arr.findIndex(x => Math.abs(x.rate - s.rate) < 0.01) === i);
+
+    const datasets = scenarios.map(s => {
+      const saved = document.getElementById('retRate').value;
+      document.getElementById('retRate').value = s.rate;
+      const data = AGES.map(a => projectPot(Math.max(a - age, 0)));
+      document.getElementById('retRate').value = saved;
+      return { label: s.label, data, borderColor: s.color, backgroundColor: 'transparent', borderWidth: 2, pointRadius: 4, tension: 0.3 };
+    });
+
+    chart = new Chart(ctx, {
+      type: 'line', data: { labels, datasets },
+      options: { responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.dataset.label + ': ' + nokFmt(c.raw, false) } } },
+        scales: baseScales }
+    });
+    document.getElementById('chartLegend').innerHTML = scenarios.map(s =>
+      `<span class="leg"><span class="leg-sq" style="background:${s.color}"></span>${s.label}</span>`).join('');
+    document.getElementById('chartNote').textContent = 'How different annual return rates change your total NOK pot.';
+  }
+}
+
+function updateFxGrid() {
+  const fxAge = vi('fxAge');
+  const age   = vi('curAge');
+  const years = Math.max(fxAge - age, 0);
+  const r     = pct('retRate') / 100;
+  const f     = state.funds;
+  const x     = state.fx;
+
+  document.getElementById('fxAgeV').textContent = fxAge;
+
+  const scenarios = [
+    { label: 'Strong FX for you',    kd: Math.max(pct('kztDep') - 3, 0), ud: pct('usdDep') + 1.5, ed: pct('eurDep') + 1.5, color: '#4ecfa8' },
+    { label: 'Base scenario',        kd: pct('kztDep'),                   ud: pct('usdDep'),        ed: pct('eurDep'),        color: '#6c8fff' },
+    { label: 'Mild FX drag',         kd: pct('kztDep') + 2,              ud: pct('usdDep') - 1,    ed: pct('eurDep') - 1,    color: '#f0a050' },
+    { label: 'Moderate FX drag',     kd: pct('kztDep') + 5,              ud: pct('usdDep') - 2,    ed: pct('eurDep') - 2,    color: '#f0a050' },
+    { label: 'Severe KZT fall',      kd: pct('kztDep') + 8,              ud: pct('usdDep') - 3,    ed: pct('eurDep') - 3,    color: '#ff6b6b' },
+    { label: 'Crisis scenario',      kd: pct('kztDep') + 12,             ud: pct('usdDep') - 5,    ed: pct('eurDep') - 5,    color: '#ff6b6b' },
+  ];
+
+  document.getElementById('fxGrid').innerHTML = scenarios.map(s => {
+    const kd = s.kd / 100, ud = s.ud / 100, ed = s.ed / 100;
+    const isppNok  = f.ispp * x.usdNok * Math.pow(1 + ud, years) * Math.pow(1 + r, years);
+    const ispsNok  = f.isps * x.eurNok * Math.pow(1 + ed, years) * Math.pow(1 + r, years);
+    const qazNok   = f.qaz  * x.kztNok * Math.pow(1 - kd, years) * Math.pow(1 + r, years);
+    const total    = Math.round(isppNok + ispsNok + qazNok);
+    return `<div class="fx-card">
+      <div class="fx-label">${s.label}</div>
+      <div class="fx-val" style="color:${s.color}">${nokFmt(total, true)}</div>
+      <div class="fx-sub">ISPP + ISPS + QAZ</div>
+    </div>`;
+  }).join('');
+}
+
+async function saveScenario() {
+  const name = document.getElementById('scenarioName').value.trim();
+  if (!name) { document.getElementById('saveStatus').textContent = 'Please enter a scenario name.'; return; }
+  const age = vi('curAge');
+  const payload = {
+    name,
+    current_age: age,
+    return_rate: pct('retRate'),
+    annuity_rate: pct('annuity'),
+    annual_contribution: pct('contrib'),
+    kzt_depreciation: pct('kztDep'),
+    usd_drift: pct('usdDep'),
+    eur_drift: pct('eurDep'),
+    projections: AGES.reduce((o, a) => {
+      const pot = projectPot(Math.max(a - age, 0));
+      o['age_' + a] = { pot, monthly: monthlyIncome(pot) };
+      return o;
+    }, {}),
+    fx_snapshot: state.fx,
+    created_at: new Date().toISOString()
+  };
+  document.getElementById('saveStatus').innerHTML = 'Saving...';
+  try {
+    const r = await supa('/rest/v1/pension_projections', {
+      method: 'POST',
+      headers: { 'Prefer': 'return=representation' },
+      body: JSON.stringify(payload)
+    });
+    if (r.status === 201 || r.status === 200) {
+      document.getElementById('saveStatus').innerHTML = '<span class="ok">Saved successfully.</span>';
+      document.getElementById('scenarioName').value = '';
+      loadScenarios();
+    } else {
+      document.getElementById('saveStatus').innerHTML = '<span class="err">Table missing — run the SQL below once in Supabase.</span>';
+      showSql();
+    }
+  } catch (e) {
+    document.getElementById('saveStatus').innerHTML = '<span class="err">Error: ' + e.message + '</span>';
+  }
+}
+
+function showSql() {
+  if (document.getElementById('sqlCode')) return;
+  const sql = `CREATE TABLE pension_projections (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  name text NOT NULL,
+  current_age int,
+  return_rate numeric,
+  annuity_rate numeric,
+  annual_contribution numeric,
+  kzt_depreciation numeric,
+  usd_drift numeric,
+  eur_drift numeric,
+  projections jsonb,
+  fx_snapshot jsonb,
+  created_at timestamptz DEFAULT now()
+);
+ALTER TABLE pension_projections ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow all" ON pension_projections FOR ALL USING (true);`;
+  const d = document.createElement('pre');
+  d.id = 'sqlCode';
+  d.className = 'sql-block';
+  d.textContent = sql;
+  document.getElementById('sqlBlock').appendChild(d);
+}
+
+async function loadScenarios() {
+  try {
+    const r = await supa('/rest/v1/pension_projections?select=id,name,return_rate,created_at&order=created_at.desc&limit=6');
+    if (!r.ok) return;
+    const rows = await r.json();
+    if (!rows || !rows.length) return;
+    document.getElementById('savedScenarios').innerHTML =
+      `<div class="saved-list-title">Saved scenarios</div>` +
+      rows.map(s => `<div class="saved-row"><span>${s.name}</span><span>${s.return_rate}% · ${new Date(s.created_at).toLocaleDateString('en-GB')}</span></div>`).join('');
+  } catch (e) { /* table doesn't exist yet */ }
+}
+
+function bindSliders() {
+  const defs = [
+    ['curAge',   'curAgeV',   v => Math.round(v)],
+    ['retRate',  'retRateV',  v => v.toFixed(1) + '%'],
+    ['contrib',  'contribV',  v => v >= 1000 ? Math.round(v / 1000) + 'K' : v],
+    ['annuity',  'annuityV',  v => v.toFixed(1) + '%'],
+    ['kztDep',   'kztDepV',   v => v.toFixed(1) + '%'],
+    ['usdDep',   'usdDepV',   v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'],
+    ['eurDep',   'eurDepV',   v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'],
+    ['fxAge',    'fxAgeV',    v => Math.round(v)],
+  ];
+  defs.forEach(([id, outId, fmt]) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('input', function () {
+      document.getElementById(outId).textContent = fmt(parseFloat(this.value));
+      update();
+    });
+  });
+}
+
+function update() {
+  updateFundsGrid();
+  updateMetrics();
+  updateChart();
+  updateFxGrid();
+}
+
+async function init() {
+  const dot = document.getElementById('statusDot');
+  const msg = document.getElementById('statusMsg');
+  dot.className = 'dot amber';
+  msg.textContent = 'Fetching exchange rates...';
+  await loadFx();
+
+  dot.className = 'dot amber';
+  msg.textContent = 'Loading snapshot from Supabase...';
+  const ok = await loadSnapshot();
+
+  if (ok) {
+    dot.className = 'dot green';
+    msg.textContent = 'Live data loaded';
+  } else {
+    dot.className = 'dot red';
+    msg.textContent = 'Could not load snapshot — check console for details';
+  }
+
+  bindSliders();
+  update();
+  loadScenarios();
+}
+
+init();
+</script>
+</body>
+</html>
